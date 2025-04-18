@@ -1,0 +1,146 @@
+/* Dark Mode Styling */
+body {
+    background: #121212;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Centered Container */
+.container {
+    /* max-width: 80%; */
+    font-size: 14px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* File Upload & Buttons */
+button, input, select {
+    background: #1db954;
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    margin: 10px;
+    cursor: pointer;
+    transition: 0.2s ease-in-out;
+}
+
+button:hover {
+    background: #17a748;
+}
+
+input, select {
+    background: #222;
+    border: 1px solid #333;
+    color: white;
+}
+
+/* Table Styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #1a1a1a;
+    margin-top: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #333;
+    text-align: left;
+}
+
+th {
+    background: #222;
+    color: #1db954;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background: #242424;
+}
+
+tr:hover {
+    background: #333;
+}
+
+/* Soft highlight for empty cells */
+td:empty, td[style*="background:red;"] {
+    background: rgba(255, 82, 82, 0.2) !important;  /* Soft pastel red */
+    color: #bbb !important;  /* Light gray text (if any) */
+    font-style: italic;
+}
+
+
+td:empty::after {
+    content: "—";  /* Minimalist dash instead of "No Data" */
+    color: rgba(255, 255, 255, 0.4);  /* Light faded white */
+    font-size: 14px;
+    font-style: italic;
+    display: block;
+    text-align: center;
+}
+
+/* Softer Highlight for Empty Cells */
+td[style*="background:red;"] {
+    background: rgba(255, 82, 82, 0.2) !important; /* Light pastel red */
+    color: transparent; /* Hide text */
+    font-style: italic;
+    text-align: center;
+}
+
+/* Optional: If you want a faint 'No Data' indicator */
+td[style*="background:red;"]::after {
+    content: "No Data";
+    color: #bbb;
+    font-size: 12px;
+}
+
+
+/* Empty Cell Highlight - Soft Red */
+.empty-cell {
+    background: rgba(255, 82, 82, 0.15); /* Light pastel red */
+    color: #aaa; /* Dimmed text */
+    font-style: italic;
+    text-align: center;
+}
+
+/* Improve dropdown & file input styling */
+select, input[type="file"] {
+    background: #222;
+    border: 2px solid #1db954;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 16px;
+    width: 300px;
+    transition: 0.3s;
+}
+
+select:hover, input[type="file"]:hover {
+    border-color: #17a748;
+    background: #2a2a2a;
+}
+
+select:focus, input[type="file"]:focus {
+    outline: none;
+    border-color: #1db954;
+    box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+}
+
+#progressSection {
+    display: none;
+    margin-top: 20px;
+}
+
+#progressBar {
+    height: 20px;
+    background: green;
+    border-radius: 5px;
+    width: 0%;
+    transition: width 0.3s ease-in-out;
+}

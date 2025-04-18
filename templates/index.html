@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Repo Downloader</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📂 Excel Repository Downloader</h1>
+
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">Upload File</button>
+
+        <div id="sheetSection" style="display:none;">
+            <h3>Select a Sheet</h3>
+            <select id="sheetSelect" onchange="loadSheet()"></select>
+        </div>
+
+        <div id="tableContainer"></div>
+
+        <button id="downloadBtn" onclick="downloadRepos()" style="display:none;">
+            Download Repositories
+        </button>
+
+        <div id="progressSection" style="display:none; margin-top: 20px;">
+            <div style="width: 100%; background: #eee; border-radius: 5px;">
+                <div id="progressBar" style="width: 0%; height: 20px; background: green; border-radius: 5px;"></div>
+            </div>
+            <p id="progressText">Progress will be shown here...</p>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
