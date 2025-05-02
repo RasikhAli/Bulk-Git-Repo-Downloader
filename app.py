@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import shutil
 from flask import Flask, render_template, request, jsonify, send_file
+import zipfile
 
 app = Flask(__name__)
 
@@ -108,20 +109,30 @@ def download_repos():
 
                 if repo_url.startswith("http"):
                     zip_url = repo_url + "/archive/refs/heads/main.zip"
-                    file_name = f"{sheet} - {reg_no} - {name}.zip"
-                    save_path = os.path.join(DOWNLOAD_FOLDER, file_name)
+                    zip_file_name = f"{sheet} - {reg_no} - {name}.zip"
+                    zip_path = os.path.join(DOWNLOAD_FOLDER, zip_file_name)
 
                     try:
                         response = requests.get(zip_url, stream=True)
                         if response.status_code == 200:
-                            with open(save_path, "wb") as file:
+                            with open(zip_path, "wb") as file:
                                 shutil.copyfileobj(response.raw, file)
+
+                            # Extract to folder
+                            extract_dir = os.path.join(DOWNLOAD_FOLDER, zip_file_name.replace(".zip", ""))
+                            os.makedirs(extract_dir, exist_ok=True)
+
+                            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                                zip_ref.extractall(extract_dir)
+
+                            # Delete the zip file after extraction
+                            os.remove(zip_path)
                         else:
                             print(f"Failed to download: {repo_url}")
                     except Exception as e:
-                        print(f"Error downloading {repo_url}: {e}")
+                        print(f"Error downloading or extracting {repo_url}: {e}")
 
-        return jsonify({"success": True, "message": "Repositories downloaded!"})
+        return jsonify({"success": True, "message": "Repositories downloaded, extracted, and cleaned up!"})
 
     except Exception as e:
         return jsonify({"success": False, "message": f"Error processing sheets: {str(e)}"})
