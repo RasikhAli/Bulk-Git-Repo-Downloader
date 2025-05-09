@@ -104,27 +104,25 @@ function downloadRepos() {
         data: JSON.stringify({ sheet_name: sheetName }),
         beforeSend: function () {
             $("#downloadBtn").prop("disabled", true);
-            $("#progressSection").show();  // Ensure visibility
+            $("#progressSection").show();
             progressText.text("Starting...");
             progressBar.css("width", "0%");
         },
-        success: function (response) {
-            let results = response.message.split("\n");
-            let total = results.length;
+        success: function () {
+            // ✅ Listen to server-sent events (SSE)
+            const eventSource = new EventSource("/progress");
+            eventSource.onmessage = function (event) {
+                const [completed, total, message] = event.data.split(",");
+                const percent = total > 0 ? (completed / total) * 100 : 0;
+                progressBar.css("width", percent + "%");
+                progressText.text(message);
 
-            results.forEach((msg, index) => {
-                setTimeout(() => {
-                    progressText.text(msg);
-                    let progress = ((index + 1) / total) * 100;
-                    progressBar.animate({ width: progress + "%" }, 200);
-                }, index * 1000);
-            });
-            
-
-            setTimeout(() => {
-                alert("Download completed!");
-                $("#downloadBtn").prop("disabled", false);
-            }, total * 1000);
+                if (completed == total) {
+                    eventSource.close();
+                    alert("Download completed!");
+                    $("#downloadBtn").prop("disabled", false);
+                }
+            };
         },
         error: function () {
             alert("Error downloading repositories.");

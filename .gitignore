@@ -1,7 +1,10 @@
 /Downloaded*
-appWorking.py
+app*Working*.py
+app*old*.py
+app*new*.py
 /venv
 AI*
 DSA*
 PAI*
 S25*.xls
+/downloads
