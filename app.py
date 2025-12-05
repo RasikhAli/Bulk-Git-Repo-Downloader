@@ -59,6 +59,20 @@ def load_sheet():
         df = df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors="ignore")
         df = df.dropna(how="all").fillna("").astype(str)
 
+        df = df[df.iloc[:, 0].astype(str).str.strip() != ""]
+
+        unwanted_keywords = ["Grade Total", "Total"]
+        grade_keywords = ["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"]
+
+        def is_summary_row(row):
+            row_str = row.iloc[:5].astype(str).str.strip()
+            return (row_str.isin(unwanted_keywords + grade_keywords).any() or 
+                    (row_str.str.len().sum() < 10 and row_str.isin(grade_keywords).any()))
+
+        df = df[~df.apply(is_summary_row, axis=1)]
+        
+        df.insert(0, "#", range(1, len(df) + 1))  
+
         data = df.to_dict(orient="records")
         columns = df.columns.tolist()
 

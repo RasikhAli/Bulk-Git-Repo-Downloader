@@ -51,15 +51,19 @@ function loadSheet() {
                 let data = response.data;
 
                 let tableHTML = "<table><thead><tr>";
+                // columns.forEach(col => {
+                //     tableHTML += `<th>${col}</th>`;
+                // });
                 columns.forEach(col => {
-                    tableHTML += `<th>${col}</th>`;
+                    let thStyle = col === "#" ? "style='width:40px;text-align:center;'" : "";
+                    tableHTML += `<th ${thStyle}>${col}</th>`;
                 });
                 tableHTML += "</tr></thead><tbody>";
 
                 data.forEach(row => {
                     tableHTML += "<tr>";
                     columns.forEach(col => {
-                        let cellValue = row[col]?.trim() || "";
+                        let cellValue = (row[col] || "").toString().trim();
                         let highlightClass = cellValue === "" ? "class='empty-cell'" : "";
                         tableHTML += `<td ${highlightClass}>${cellValue || ""}</td>`;
                     });

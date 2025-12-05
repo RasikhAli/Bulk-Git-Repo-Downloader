@@ -2,3 +2,4 @@ Flask
 pandas
 openpyxl
 requests
+python-docx
