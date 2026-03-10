@@ -1,12 +1,35 @@
+# Core Exclusions
+/downloads/
+/uploads/
+
+# Virtual Environments
+/venv/
+/.venv/
+env/
+.env
+
+# Cache & Compiled Files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDEs & System Files
+.vscode/
+.idea/
+.DS_Store
+
+# User Data & Spreadsheets
+*.xls
+*.xlsx
+*.csv
+
+# Specific Application Temp & Backup Files
 /Downloaded*
 app*Working*.py
 app*old*.py
 app*new*.py
-/venv
 AI*
 DSA*
 PAI*
-S25*.xls
-*.xlsx
-/downloads
-/uploads
+S25*

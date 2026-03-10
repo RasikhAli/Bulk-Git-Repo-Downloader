@@ -1,36 +1,178 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Repo Downloader</title>
+    <title>Superior Repo Downloader</title>
+    <meta name="description" content="Download and analyse student GitHub repositories from Excel sheets.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" aria-live="polite"></div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <span class="logo-icon">📂</span>
+            <div>
+                <h1>Superior Repo Downloader</h1>
+                <p class="header-sub">Excel → GitHub Repositories, in seconds</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="darkModeToggle" class="icon-btn" onclick="toggleDarkMode()" title="Toggle dark/light mode">🌙</button>
+        </div>
+    </header>
+
     <div class="container">
-        <h1>📂 Excel Repository Downloader</h1>
 
-        <input type="file" id="fileInput">
-        <button onclick="uploadFile()">Upload File</button>
-
-        <div id="sheetSection" style="display:none;">
-            <h3>Select a Sheet</h3>
-            <select id="sheetSelect" onchange="loadSheet()"></select>
+        <!-- GitHub Token Section -->
+        <div id="tokenSection" class="card token-section">
+            <div class="token-header" onclick="toggleTokenSection()">
+                <span>🔑 GitHub API Token</span>
+                <div class="token-header-right">
+                    <span id="tokenStatus" class="token-status">Checking...</span>
+                    <span class="chevron" id="tokenChevron">▼</span>
+                </div>
+            </div>
+            <div id="tokenContent" class="token-content" style="display:none;">
+                <p class="token-info">
+                    Set a GitHub token for higher API limits (5,000/hr vs 60/hr without a token).
+                    <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Get one here →</a>
+                </p>
+                <div class="token-input-row">
+                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+                    <button onclick="setGitHubToken()" class="btn-primary">Set Token</button>
+                    <button onclick="clearGitHubToken()" class="btn-secondary">Clear</button>
+                </div>
+            </div>
         </div>
 
+        <!-- Upload Section -->
+        <div class="card upload-card">
+            <h2 class="section-title">📤 Upload Excel File</h2>
+            <div class="upload-row">
+                <label class="file-label" for="fileInput">
+                    <span id="fileLabel">Choose .xlsx / .xls file…</span>
+                    <input type="file" id="fileInput" accept=".xls,.xlsx" onchange="updateFileLabel(this)">
+                </label>
+                <button onclick="uploadFile()" class="btn-primary">Upload &amp; Parse</button>
+            </div>
+        </div>
+
+        <!-- Sheet Selector -->
+        <div id="sheetSection" class="card" style="display:none;">
+            <h2 class="section-title">📋 Select Sheet</h2>
+            <div class="sheet-row">
+                <select id="sheetSelect" onchange="loadSheet()"></select>
+            </div>
+        </div>
+
+        <!-- Search / Filter -->
+        <div id="searchSection" class="card search-card" style="display:none;">
+            <div class="search-row">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search by name, reg no, URL…" oninput="filterTable()" class="search-input">
+                <span id="rowCount" class="row-count"></span>
+                <button onclick="clearSearch()" class="btn-ghost" id="clearSearchBtn" style="display:none;">✕ Clear</button>
+            </div>
+        </div>
+
+        <!-- Table -->
         <div id="tableContainer"></div>
 
-        <button id="downloadBtn" onclick="downloadRepos()" style="display:none;">
-            Download Repositories
-        </button>
+        <!-- Download Options -->
+        <div id="downloadOptions" class="card" style="display:none;">
+            <h2 class="section-title">⬇️ Download Repositories</h2>
+            <div id="repoColumnsInfo" class="info-box"></div>
 
-        <div id="progressSection" style="display:none; margin-top: 20px;">
-            <div style="width: 100%; background: #eee; border-radius: 5px;">
-                <div id="progressBar" style="width: 0%; height: 20px; background: green; border-radius: 5px;"></div>
+            <div class="download-tabs">
+                <button id="quickDownloadTab" class="tab-button active" onclick="switchTab('quick')">⚡ Quick Download (All)</button>
+                <button id="selectiveDownloadTab" class="tab-button" onclick="switchTab('selective')">🔍 Selective Download</button>
             </div>
-            <p id="progressText">Progress will be shown here...</p>
+
+            <!-- Quick Tab -->
+            <div id="quickDownloadSection" class="download-section">
+                <p class="section-desc">Download all repositories from <strong>GitHub Repo</strong> and <strong>GitHub Project Repo</strong> columns in parallel.</p>
+                <button id="downloadBtn" onclick="downloadRepos()" class="btn-primary btn-large">🚀 Download All Repositories</button>
+            </div>
+
+            <!-- Selective Tab -->
+            <div id="selectiveDownloadSection" class="download-section" style="display:none;">
+                <p class="section-desc">Fetch GitHub profiles to browse and select individual repositories.</p>
+                <button id="fetchProfilesBtn" onclick="fetchGitHubProfiles()" class="btn-primary">🔄 Fetch GitHub Profiles</button>
+
+                <div id="profilesLoadingIndicator" class="loading-indicator" style="display:none;">
+                    <div class="spinner"></div>
+                    <span>Fetching GitHub profiles…</span>
+                </div>
+
+                <div id="githubProfilesContainer"></div>
+
+                <div id="selectionSummary" style="display:none;">
+                    <p><strong>Selected:</strong> <span id="selectedCount">0</span> repositories</p>
+                </div>
+
+                <button id="downloadSelectedBtn" onclick="downloadSelectedRepos()" class="btn-primary btn-large" style="display:none;">
+                    📥 Download Selected Repositories
+                </button>
+            </div>
         </div>
-    </div>
+
+        <!-- Progress -->
+        <div id="progressSection" class="card" style="display:none;">
+            <h2 class="section-title">⏳ Download Progress</h2>
+            <div class="progress-container">
+                <div id="progressBar"></div>
+            </div>
+            <p id="progressText" class="progress-text">Progress will be shown here…</p>
+        </div>
+
+        <!-- Tools Row -->
+        <div id="toolsRow" class="tools-row">
+            <button onclick="showSummaryReport()" class="btn-tool" title="View details of the last download session">📊 Download Summary Report</button>
+            <button onclick="runPlagiarismCheck()" class="btn-tool btn-tool-danger" title="Scan 'downloads' folder for copied assignments">🔍 Plagiarism / Copy Detection</button>
+        </div>
+
+        <!-- Summary Report Panel -->
+        <div id="summaryPanel" class="card panel-hidden" style="display:none;">
+            <div class="panel-header">
+                <h2 class="section-title">📊 Download Summary Report</h2>
+                <div class="panel-actions">
+                    <a id="exportCsvLink" href="/export_summary_csv" class="btn-secondary" download>⬇️ Export CSV</a>
+                    <button onclick="closeSummaryPanel()" class="btn-ghost">✕</button>
+                </div>
+            </div>
+            <div id="summaryContent"></div>
+        </div>
+
+        <div id="plagiarismPanel" class="card panel-hidden" style="display:none;">
+            <div class="panel-header">
+                <h2 class="section-title">🔍 Plagiarism / Copy Detection</h2>
+                <div class="panel-actions">
+                    <label class="threshold-label">Min similarity:</label>
+                    <select id="similarityThreshold" onchange="applyThreshold()" class="small-select">
+                        <option value="0">All (0%+)</option>
+                        <option value="25" selected>Suspicious (25%+)</option>
+                        <option value="50">High (50%+)</option>
+                        <option value="80">Critical (80%+)</option>
+                    </select>
+                    <a id="exportExcelLink" href="/export_plagiarism_excel" class="btn-secondary" style="margin-left:8px" download>⬇️ Export Excel</a>
+                    <button onclick="closePlagiarismPanel()" class="btn-ghost">✕</button>
+                </div>
+            </div>
+            <div id="plagiarismLoadingIndicator" class="loading-indicator" style="display:none;">
+                <div class="spinner"></div>
+                <span>Analysing repositories for similarities…</span>
+            </div>
+            <div id="plagiarismContent"></div>
+        </div>
+
+    </div><!-- /.container -->
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/static/script.js"></script>
