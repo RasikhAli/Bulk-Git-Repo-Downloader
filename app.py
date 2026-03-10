@@ -43,9 +43,9 @@ session.mount('https://', adapter)
 
 if GITHUB_TOKEN:
     session.headers.update({'Authorization': f'token {GITHUB_TOKEN}'})
-    print("✅ GitHub token configured - 5000 requests/hour limit")
+    print("[SUCCESS] GitHub token configured - 5000 requests/hour limit")
 else:
-    print("⚠️  No GitHub token - limited to 60 requests/hour. Set GITHUB_TOKEN env variable.")
+    print("[WARNING] No GitHub token - limited to 60 requests/hour. Set GITHUB_TOKEN env variable.")
 
 
 @app.route("/")

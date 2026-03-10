@@ -12,7 +12,18 @@ let plagiarismCache = null;   // Cache last plagiarism result
 function initTheme() {
     const saved = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
-    document.getElementById('darkModeToggle').textContent = saved === 'dark' ? '☀️' : '🌙';
+    updateThemeIcon(saved);
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('themeIcon');
+    if (!icon) return;
+    if (theme === 'dark') {
+        icon.setAttribute('data-lucide', 'sun');
+    } else {
+        icon.setAttribute('data-lucide', 'moon');
+    }
+    lucide.createIcons();
 }
 
 function toggleDarkMode() {
@@ -21,19 +32,25 @@ function toggleDarkMode() {
     const next = current === 'dark' ? 'light' : 'dark';
     root.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
-    document.getElementById('darkModeToggle').textContent = next === 'dark' ? '☀️' : '🌙';
+    updateThemeIcon(next);
 }
 
 // ─── TOAST NOTIFICATIONS ────────────────────────────
 function showToast(message, type = 'info', duration = 4000) {
-    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const icons = { 
+        success: '<i data-lucide="check-circle"></i>', 
+        error: '<i data-lucide="alert-circle"></i>', 
+        warning: '<i data-lucide="alert-triangle"></i>', 
+        info: '<i data-lucide="info"></i>' 
+    };
     const container = document.getElementById('toastContainer');
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
+    toast.innerHTML = `<span>${icons[type] || icons.info}</span><span>${message}</span>`;
 
     container.appendChild(toast);
+    lucide.createIcons();
 
     setTimeout(() => {
         toast.classList.add('hiding');
@@ -57,16 +74,17 @@ function checkRateLimit() {
         const statusEl = document.getElementById('tokenStatus');
         if (response.success) {
             if (response.has_token) {
-                statusEl.innerHTML = `✅ Token active (${response.remaining}/${response.limit})`;
+                statusEl.innerHTML = `<i data-lucide="check-circle-2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Token active (${response.remaining}/${response.limit})`;
                 statusEl.className = 'token-status active';
             } else {
-                statusEl.innerHTML = `⚠️ No token (${response.remaining}/${response.limit})`;
+                statusEl.innerHTML = `<i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> No token (${response.remaining}/${response.limit})`;
                 statusEl.className = 'token-status warning';
             }
         } else {
-            statusEl.innerHTML = '❌ Error';
+            statusEl.innerHTML = '<i data-lucide="x-circle" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Error';
             statusEl.className = 'token-status error';
         }
+        lucide.createIcons();
     });
 }
 
@@ -230,7 +248,7 @@ function renderTable(data, columns) {
             } else if (isUrl) {
                 html += `<td class="url-cell">
                     <a href="${val}" target="_blank" rel="noopener" title="${val}">${truncate(val, 35)}</a>
-                    <button class="copy-btn" onclick="copyText('${escapeJs(val)}')" title="Copy URL">📋</button>
+                    <button class="copy-btn" onclick="copyText('${escapeJs(val)}')" title="Copy URL"><i data-lucide="copy"></i></button>
                 </td>`;
             } else {
                 html += `<td>${val}</td>`;
@@ -241,6 +259,7 @@ function renderTable(data, columns) {
 
     html += '</tbody></table>';
     $('#tableContainer').html(html);
+    lucide.createIcons();
 }
 
 function truncate(str, max) {
@@ -326,7 +345,7 @@ function fetchGitHubProfiles() {
             if (response.success) {
                 githubProfilesData = response.github_profiles || [];
                 displayGithubProfiles();
-                $('#fetchProfilesBtn').text('✅ Profiles Loaded').prop('disabled', true);
+                $('#fetchProfilesBtn').html('<i data-lucide="check"></i> Profiles Loaded').prop('disabled', true);
                 showToast(`Loaded ${githubProfilesData.length} profiles.`, 'success');
             } else {
                 showToast(response.message || 'Error fetching profiles', 'error');
@@ -353,7 +372,7 @@ function displayGithubProfiles() {
 
     let html = `
         <div class="profiles-header">
-            <h4>📚 Select Repositories to Download</h4>
+            <h4><i data-lucide="book-open"></i> Select Repositories to Download</h4>
             <p class="profile-summary">${githubProfilesData.length} profiles · ${totalRepos} total repositories</p>
             <div class="selection-actions">
                 <button type="button" class="action-btn" onclick="selectAllRepos()">Select All</button>
@@ -365,8 +384,8 @@ function displayGithubProfiles() {
         html += `
         <div class="profile-section">
             <div class="profile-header">
-                <h5>👤 ${profile.name} <span class="reg-no">(${profile.reg_no})</span></h5>
-                <a href="${profile.profile_url}" target="_blank" rel="noopener" class="profile-link">🔗 View Profile</a>
+                <h5><i data-lucide="user"></i> ${profile.name} <span class="reg-no">(${profile.reg_no})</span></h5>
+                <a href="${profile.profile_url}" target="_blank" rel="noopener" class="profile-link"><i data-lucide="external-link"></i> View Profile</a>
             </div>
             <div class="repositories">`;
 
@@ -379,13 +398,13 @@ function displayGithubProfiles() {
                            data-profile-index="${pi}" data-repo-index="${ri}"
                            onchange="updateSelectedRepos()">
                     <label for="${cbId}">
-                        <div class="repo-name">📁 ${repo.name}${forkBadge}</div>
+                        <div class="repo-name"><i data-lucide="folder"></i> ${repo.name}${forkBadge}</div>
                         <div class="repo-desc">${repo.description}</div>
                         <div class="repo-meta">
-                            <span>💻 ${repo.language || 'Unknown'}</span>
-                            <span>⭐ ${repo.stars}</span>
-                            <span>🍴 ${repo.forks_count || 0}</span>
-                            <span>📅 ${new Date(repo.updated_at).toLocaleDateString()}</span>
+                            <span><i data-lucide="code-2"></i> ${repo.language || 'Unknown'}</span>
+                            <span><i data-lucide="star"></i> ${repo.stars}</span>
+                            <span><i data-lucide="git-fork"></i> ${repo.forks_count || 0}</span>
+                            <span><i data-lucide="calendar"></i> ${new Date(repo.updated_at).toLocaleDateString()}</span>
                         </div>
                     </label>
                 </div>`;
@@ -395,6 +414,7 @@ function displayGithubProfiles() {
     });
 
     container.innerHTML = html;
+    lucide.createIcons();
 }
 
 function selectAllRepos() {
@@ -413,9 +433,10 @@ function updateSelectedRepos() {
 
     if (checked.length > 0) {
         btn.style.display = 'inline-flex';
-        btn.textContent = `📥 Download Selected Repositories (${checked.length})`;
+        btn.innerHTML = `<i data-lucide="download-cloud"></i> Download Selected Repositories (${checked.length})`;
         summary.style.display = 'block';
         document.getElementById('selectedCount').textContent = checked.length;
+        lucide.createIcons();
     } else {
         btn.style.display = 'none';
         summary.style.display = 'none';
@@ -494,7 +515,7 @@ function startProgressTracking(mode) {
             $('#downloadBtn').prop('disabled', false);
             $('#downloadSelectedBtn').prop('disabled', false);
             $('#toolsRow').show();
-            showToast('All downloads complete! 🎉', 'success', 6000);
+            showToast('All downloads complete!', 'success', 6000);
         }
     };
     evtSource.onerror = function () {
@@ -536,8 +557,8 @@ function showSummaryReport() {
 
         entries.forEach((e, i) => {
             const badge = e.status === 'success'
-                ? `<span class="row-status-badge success">✓ OK</span>`
-                : `<span class="row-status-badge failed">✗ Failed</span>`;
+                ? `<span class="row-status-badge success"><i data-lucide="check"></i> OK</span>`
+                : `<span class="row-status-badge failed"><i data-lucide="alert-circle"></i> Failed</span>`;
             const urlShort = truncate(e.repo_url || '', 40);
             html += `<tr>
                 <td>${i + 1}</td>
@@ -549,13 +570,14 @@ function showSummaryReport() {
                 <td>${badge}</td>
                 <td class="url-cell">
                     <a href="${e.repo_url}" target="_blank">${urlShort}</a>
-                    <button class="copy-btn" onclick="copyText('${escapeJs(e.repo_url)}')" title="Copy">📋</button>
+                    <button class="copy-btn" onclick="copyText('${escapeJs(e.repo_url)}')" title="Copy"><i data-lucide="copy"></i></button>
                 </td>
             </tr>`;
         });
 
         html += '</tbody></table></div>';
         document.getElementById('summaryContent').innerHTML = html;
+        lucide.createIcons();
     });
 
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -607,16 +629,16 @@ function renderPlagiarismResults(data, threshold = 25) {
 
     let html = `
     <div class="plag-stats">
-        <div class="plag-stat">📁 <strong>${total_repos}</strong> repos scanned</div>
-        <div class="plag-stat">🔗 <strong>${total_pairs}</strong> pairs compared</div>
-        <div class="plag-stat" style="color:var(--danger)">🚨 <strong>${rc.critical}</strong> Critical ≥80%</div>
-        <div class="plag-stat" style="color:var(--warning)">⚠️ <strong>${rc.high}</strong> High 50–79%</div>
-        <div class="plag-stat" style="color:var(--info)">🔵 <strong>${rc.medium}</strong> Medium 25–49%</div>
+        <div class="plag-stat"><i data-lucide="folder"></i> <strong>${total_repos}</strong> repos scanned</div>
+        <div class="plag-stat"><i data-lucide="link"></i> <strong>${total_pairs}</strong> pairs compared</div>
+        <div class="plag-stat" style="color:var(--danger)"><i data-lucide="alert-octagon"></i> <strong>${rc.critical}</strong> Critical ≥80%</div>
+        <div class="plag-stat" style="color:var(--warning)"><i data-lucide="alert-triangle"></i> <strong>${rc.high}</strong> High 50–79%</div>
+        <div class="plag-stat" style="color:var(--info)"><i data-lucide="circle"></i> <strong>${rc.medium}</strong> Medium 25–49%</div>
     </div>`;
 
     if (!filtered.length) {
         html += `<div class="plag-no-results">
-            <div style="font-size:48px">✅</div>
+            <div style="font-size:48px;color:var(--success)"><i data-lucide="check-circle-2" style="width:48px;height:48px;"></i></div>
             <div style="font-size:16px;margin-top:10px;color:var(--success)">No suspicious pairs above ${threshold}%</div>
             <div style="font-size:13px;color:var(--text-muted);margin-top:6px">All repos look original at this threshold.</div>
         </div>`;
@@ -630,21 +652,21 @@ function renderPlagiarismResults(data, threshold = 25) {
             const bar = (v) => `<div class="layer-bar-bg"><div class="layer-bar-fill" style="width:${Math.min(v,100)}%;background:${col(v)}"></div></div>`;
 
             const layers = [
-                { label: '🔑 MD5 Exact',    score: s.md5_score,  note: `${s.matching_files_md5} identical files` },
-                { label: '🌳 AST Structure', score: s.ast_score,  note: s.ast_score != null ? `${s.ast_comparisons} .py files` : 'No Python files matched' },
-                { label: '📝 Text Sim.',     score: s.text_score, note: s.text_score != null ? `${s.text_comparisons} files` : 'No text files matched' },
+                { label: 'MD5 Exact',    icon: 'key', score: s.md5_score,  note: `${s.matching_files_md5} identical files` },
+                { label: 'AST Structure', icon: 'git-branch', score: s.ast_score,  note: s.ast_score != null ? `${s.ast_comparisons} .py files` : 'No Python files matched' },
+                { label: 'Text Sim.',     icon: 'file-text', score: s.text_score, note: s.text_score != null ? `${s.text_comparisons} files` : 'No text files matched' },
             ];
 
             let layersHtml = '<div class="layer-list">';
             layers.forEach(l => {
                 if (l.score === null || l.score === undefined) {
                     layersHtml += `<div class="layer-row layer-na">
-                        <span class="layer-label">${l.label}</span>
+                        <span class="layer-label"><i data-lucide="${l.icon}"></i> ${l.label}</span>
                         <span style="grid-column:2/5;color:var(--text-muted)">${l.note}</span>
                     </div>`;
                 } else {
                     layersHtml += `<div class="layer-row">
-                        <span class="layer-label">${l.label}</span>
+                        <span class="layer-label"><i data-lucide="${l.icon}"></i> ${l.label}</span>
                         <div class="layer-bar-wrap">${bar(l.score)}</div>
                         <span class="layer-score" style="color:${col(l.score)}">${l.score}%</span>
                         <span class="layer-note">${l.note}</span>
@@ -658,7 +680,7 @@ function renderPlagiarismResults(data, threshold = 25) {
             if (s.sample_matches && s.sample_matches.length) {
                 matchesHtml = `<details style="margin-top:10px">
                     <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);user-select:none">
-                        📄 ${s.matching_files_md5} identical file${s.matching_files_md5 !== 1 ? 's' : ''} — expand for evidence
+                        <i data-lucide="files" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> ${s.matching_files_md5} identical file${s.matching_files_md5 !== 1 ? 's' : ''} — expand for evidence
                     </summary>
                     <div class="matching-files">`;
                 s.sample_matches.forEach(m => {
@@ -690,9 +712,9 @@ function renderPlagiarismResults(data, threshold = 25) {
                 </div>
                 ${layersHtml}
                 <div class="plag-meta" style="margin-top:10px">
-                    <span>🆔 ${a.reg_no} vs ${b.reg_no}</span>
-                    <span>📋 ${a.sheet} vs ${b.sheet}</span>
-                    <span>📁 ${a.file_count} files vs ${b.file_count} files</span>
+                    <span><i data-lucide="fingerprint"></i> ${a.reg_no} vs ${b.reg_no}</span>
+                    <span><i data-lucide="layout"></i> ${a.sheet} vs ${b.sheet}</span>
+                    <span><i data-lucide="files"></i> ${a.file_count} files vs ${b.file_count} files</span>
                 </div>
                 ${matchesHtml}
             </div>`;
@@ -700,6 +722,7 @@ function renderPlagiarismResults(data, threshold = 25) {
     }
 
     document.getElementById('plagiarismContent').innerHTML = html;
+    lucide.createIcons();
 }
 
 function closePlagiarismPanel() {

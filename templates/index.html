@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
@@ -17,14 +18,14 @@
     <!-- Header -->
     <header class="app-header">
         <div class="header-left">
-            <span class="logo-icon">📂</span>
+            <span class="logo-icon"><i data-lucide="folder-down"></i></span>
             <div>
                 <h1>Superior Repo Downloader</h1>
                 <p class="header-sub">Excel → GitHub Repositories, in seconds</p>
             </div>
         </div>
         <div class="header-right">
-            <button id="darkModeToggle" class="icon-btn" onclick="toggleDarkMode()" title="Toggle dark/light mode">🌙</button>
+            <button id="darkModeToggle" class="icon-btn" onclick="toggleDarkMode()" title="Toggle dark/light mode"><i data-lucide="moon" id="themeIcon"></i></button>
         </div>
     </header>
 
@@ -33,10 +34,10 @@
         <!-- GitHub Token Section -->
         <div id="tokenSection" class="card token-section">
             <div class="token-header" onclick="toggleTokenSection()">
-                <span>🔑 GitHub API Token</span>
+                <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="key" style="width:18px;height:18px;"></i> GitHub API Token</span>
                 <div class="token-header-right">
                     <span id="tokenStatus" class="token-status">Checking...</span>
-                    <span class="chevron" id="tokenChevron">▼</span>
+                    <i data-lucide="chevron-down" id="tokenChevron" style="width:18px;height:18px;"></i>
                 </div>
             </div>
             <div id="tokenContent" class="token-content" style="display:none;">
@@ -54,7 +55,7 @@
 
         <!-- Upload Section -->
         <div class="card upload-card">
-            <h2 class="section-title">📤 Upload Excel File</h2>
+            <h2 class="section-title"><i data-lucide="upload-cloud"></i> Upload Excel File</h2>
             <div class="upload-row">
                 <label class="file-label" for="fileInput">
                     <span id="fileLabel">Choose .xlsx / .xls file…</span>
@@ -66,7 +67,7 @@
 
         <!-- Sheet Selector -->
         <div id="sheetSection" class="card" style="display:none;">
-            <h2 class="section-title">📋 Select Sheet</h2>
+            <h2 class="section-title"><i data-lucide="list"></i> Select Sheet</h2>
             <div class="sheet-row">
                 <select id="sheetSelect" onchange="loadSheet()"></select>
             </div>
@@ -75,10 +76,10 @@
         <!-- Search / Filter -->
         <div id="searchSection" class="card search-card" style="display:none;">
             <div class="search-row">
-                <span class="search-icon">🔍</span>
+                <span class="search-icon"><i data-lucide="search" style="width:18px;height:18px;"></i></span>
                 <input type="text" id="searchInput" placeholder="Search by name, reg no, URL…" oninput="filterTable()" class="search-input">
                 <span id="rowCount" class="row-count"></span>
-                <button onclick="clearSearch()" class="btn-ghost" id="clearSearchBtn" style="display:none;">✕ Clear</button>
+                <button onclick="clearSearch()" class="btn-ghost" id="clearSearchBtn" style="display:none;"><i data-lucide="x" style="width:16px;height:16px;"></i> Clear</button>
             </div>
         </div>
 
@@ -87,24 +88,24 @@
 
         <!-- Download Options -->
         <div id="downloadOptions" class="card" style="display:none;">
-            <h2 class="section-title">⬇️ Download Repositories</h2>
+            <h2 class="section-title"><i data-lucide="download"></i> Download Repositories</h2>
             <div id="repoColumnsInfo" class="info-box"></div>
 
             <div class="download-tabs">
-                <button id="quickDownloadTab" class="tab-button active" onclick="switchTab('quick')">⚡ Quick Download (All)</button>
-                <button id="selectiveDownloadTab" class="tab-button" onclick="switchTab('selective')">🔍 Selective Download</button>
+                <button id="quickDownloadTab" class="tab-button active" onclick="switchTab('quick')"><i data-lucide="zap"></i> Quick Download (All)</button>
+                <button id="selectiveDownloadTab" class="tab-button" onclick="switchTab('selective')"><i data-lucide="search"></i> Selective Download</button>
             </div>
 
             <!-- Quick Tab -->
             <div id="quickDownloadSection" class="download-section">
                 <p class="section-desc">Download all repositories from <strong>GitHub Repo</strong> and <strong>GitHub Project Repo</strong> columns in parallel.</p>
-                <button id="downloadBtn" onclick="downloadRepos()" class="btn-primary btn-large">🚀 Download All Repositories</button>
+                <button id="downloadBtn" onclick="downloadRepos()" class="btn-primary btn-large"><i data-lucide="rocket"></i> Download All Repositories</button>
             </div>
 
             <!-- Selective Tab -->
             <div id="selectiveDownloadSection" class="download-section" style="display:none;">
                 <p class="section-desc">Fetch GitHub profiles to browse and select individual repositories.</p>
-                <button id="fetchProfilesBtn" onclick="fetchGitHubProfiles()" class="btn-primary">🔄 Fetch GitHub Profiles</button>
+                <button id="fetchProfilesBtn" onclick="fetchGitHubProfiles()" class="btn-primary"><i data-lucide="refresh-cw"></i> Fetch GitHub Profiles</button>
 
                 <div id="profilesLoadingIndicator" class="loading-indicator" style="display:none;">
                     <div class="spinner"></div>
@@ -118,14 +119,14 @@
                 </div>
 
                 <button id="downloadSelectedBtn" onclick="downloadSelectedRepos()" class="btn-primary btn-large" style="display:none;">
-                    📥 Download Selected Repositories
+                    <i data-lucide="download-cloud"></i> Download Selected Repositories
                 </button>
             </div>
         </div>
 
         <!-- Progress -->
         <div id="progressSection" class="card" style="display:none;">
-            <h2 class="section-title">⏳ Download Progress</h2>
+            <h2 class="section-title"><i data-lucide="hourglass"></i> Download Progress</h2>
             <div class="progress-container">
                 <div id="progressBar"></div>
             </div>
@@ -134,17 +135,17 @@
 
         <!-- Tools Row -->
         <div id="toolsRow" class="tools-row">
-            <button onclick="showSummaryReport()" class="btn-tool" title="View details of the last download session">📊 Download Summary Report</button>
-            <button onclick="runPlagiarismCheck()" class="btn-tool btn-tool-danger" title="Scan 'downloads' folder for copied assignments">🔍 Plagiarism / Copy Detection</button>
+            <button onclick="showSummaryReport()" class="btn-tool" title="View details of the last download session"><i data-lucide="bar-chart-2" style="width:16px;height:16px;"></i> Download Summary Report</button>
+            <button onclick="runPlagiarismCheck()" class="btn-tool btn-tool-danger" title="Scan 'downloads' folder for copied assignments"><i data-lucide="scan-search" style="width:16px;height:16px;"></i> Plagiarism / Copy Detection</button>
         </div>
 
         <!-- Summary Report Panel -->
         <div id="summaryPanel" class="card panel-hidden" style="display:none;">
             <div class="panel-header">
-                <h2 class="section-title">📊 Download Summary Report</h2>
+                <h2 class="section-title"><i data-lucide="bar-chart-2"></i> Download Summary Report</h2>
                 <div class="panel-actions">
-                    <a id="exportCsvLink" href="/export_summary_csv" class="btn-secondary" download>⬇️ Export CSV</a>
-                    <button onclick="closeSummaryPanel()" class="btn-ghost">✕</button>
+                    <a id="exportCsvLink" href="/export_summary_csv" class="btn-secondary" download><i data-lucide="download" style="width:16px;height:16px;"></i> Export CSV</a>
+                    <button onclick="closeSummaryPanel()" class="btn-ghost"><i data-lucide="x"></i></button>
                 </div>
             </div>
             <div id="summaryContent"></div>
@@ -152,7 +153,7 @@
 
         <div id="plagiarismPanel" class="card panel-hidden" style="display:none;">
             <div class="panel-header">
-                <h2 class="section-title">🔍 Plagiarism / Copy Detection</h2>
+                <h2 class="section-title"><i data-lucide="shield-alert"></i> Plagiarism / Copy Detection</h2>
                 <div class="panel-actions">
                     <label class="threshold-label">Min similarity:</label>
                     <select id="similarityThreshold" onchange="applyThreshold()" class="small-select">
@@ -161,8 +162,8 @@
                         <option value="50">High (50%+)</option>
                         <option value="80">Critical (80%+)</option>
                     </select>
-                    <a id="exportExcelLink" href="/export_plagiarism_excel" class="btn-secondary" style="margin-left:8px" download>⬇️ Export Excel</a>
-                    <button onclick="closePlagiarismPanel()" class="btn-ghost">✕</button>
+                    <a id="exportExcelLink" href="/export_plagiarism_excel" class="btn-secondary" style="margin-left:8px" download><i data-lucide="file-spreadsheet" style="width:16px;height:16px;"></i> Export Excel</a>
+                    <button onclick="closePlagiarismPanel()" class="btn-ghost"><i data-lucide="x"></i></button>
                 </div>
             </div>
             <div id="plagiarismLoadingIndicator" class="loading-indicator" style="display:none;">
@@ -176,5 +177,9 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/static/script.js"></script>
+    <script>
+        // Initialize lucide icons
+        lucide.createIcons();
+    </script>
 </body>
 </html>
