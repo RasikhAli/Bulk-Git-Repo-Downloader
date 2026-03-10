@@ -1,4 +1,4 @@
-# 📂 Superior Students Repo Downloader
+# Superior Students Repo Downloader
 
 A comprehensive, web-based tool built to **automatically download multiple GitHub repositories** listed in Excel sheets, and to perform **advanced plagiarism detection** between student submissions.
 
@@ -6,16 +6,16 @@ Originally developed for managing student projects at **Superior University**, t
 
 ---
 
-## 🎓 Features
+## Features
 
-### 🚀 Bulk Downloader
+### Bulk Downloader
 - Upload `.xls` or `.xlsx` Excel files
 - Automatically reads `GitHub Repo` and `GitHub Project Repo` URLs and downloads them in parallel
 - Select specific sheets or process and filter selected repositories
 - Fast, parallel downloading directly extracting the default branch
 - Clean, searchable UI with data tables and toast notifications
 
-### 🔍 Plagiarism & Copy Detection
+### Plagiarism & Copy Detection
 - **Multi-layered Plagiarism Engine**:
   - **Layer 1 (MD5 Hash)**: Detects exact byte-for-byte identical files.
   - **Layer 2 (AST Structure)**: Compares the Abstract Syntax Tree pattern of Python source code to detect logical copying even if variables and comments are heavily changed.
@@ -25,23 +25,23 @@ Originally developed for managing student projects at **Superior University**, t
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 Here’s a quick preview of the app and its features:
 
-### 🧾 Upload Excel & Download repository
+### Upload Excel & Download repository
 ![Upload Excel & Download repository](assets/Download_repo.png)
 
-### 📊 Download summary report
+### Download summary report
 ![Download summary report](assets/summary_report.png)
 
-### 🕵️ Plagiarism / Copy Detection
+### Plagiarism / Copy Detection
 ![Plagiarism / Copy Detection](assets/plagiarism_report.png)
 
 
 ---
 
-## 📦 Installation
+## Installation
 
 1. **Clone the repository**
    ```bash
@@ -74,7 +74,7 @@ Here’s a quick preview of the app and its features:
 
 ---
 
-## 📁 Folder Structure
+## Folder Structure
 
 ```
 .
@@ -94,7 +94,7 @@ Here’s a quick preview of the app and its features:
 
 ---
 
-## 📊 Excel Format Guidelines
+## Excel Format Guidelines
 
 Your Excel sheets should contain a `GitHub Repo` or `GitHub Project Repo` column.  
 The app also expects (but does not strictly require):
@@ -103,7 +103,7 @@ The app also expects (but does not strictly require):
 
 ---
 
-## 🔐 API Limits (Optional)
+## API Limits (Optional)
 
 The app downloads public GitHub repos using direct zip connections without an API token, meaning there is no rate-limit on downloading files.
 However, to use the **"Selective Download" (Fetch GitHub Profiles)** feature, GitHub limits anonymous users to 60 requests/hour. 
@@ -111,24 +111,24 @@ You can paste in a GitHub Token directly in the UI to increase this to 5,000 req
 
 ---
 
-## 🛠 Built With
+## Built With
 
-- 🐍 **Python + Flask**
-- 📊 **pandas & xlsxwriter**: For robust Excel parsing and Export Generation
-- 💾 **requests**: For parallel GitHub .zip downloads
-- 🔍 **Python AST & Difflib**: For Abstract Syntax Tree and logical plagiarism discovery
-- 🖥 **Vanilla HTML/CSS/JS** with a custom responsive Dark Mode design
+- **Python + Flask**
+- **pandas & xlsxwriter**: For robust Excel parsing and Export Generation
+- **requests**: For parallel GitHub .zip downloads
+- **Python AST & Difflib**: For Abstract Syntax Tree and logical plagiarism discovery
+- **Vanilla HTML/CSS/JS** with a custom responsive Dark Mode design
 
 ---
 
-## 📚 License
+## License
 
 This project is for educational and personal use.  
 Feel free to modify and share with credit.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Created by an instructor for the students of **Superior University**.  
 Helping streamline project submissions and ensure academic integrity.
