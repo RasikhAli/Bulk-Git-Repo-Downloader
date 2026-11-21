@@ -3,3 +3,5 @@ pandas
 openpyxl
 requests
 python-docx
+xlsxwriter
+python-dotenv

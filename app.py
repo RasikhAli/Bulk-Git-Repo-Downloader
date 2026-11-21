@@ -3,6 +3,10 @@ import ast as python_ast
 import difflib
 import hashlib
 import warnings
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import pandas as pd
 import requests
 import shutil
@@ -419,13 +423,30 @@ def fetch_profiles():
     })
 
 
+@app.route("/download_progress_status", methods=["GET"])
+def download_progress_status():
+    """Real-time JSON endpoint for download progress (reliable polling fallback)."""
+    with progress_lock:
+        return jsonify(dict(progress_data))
+
+
 @app.route("/progress")
 def progress():
     def generate():
-        while progress_data["completed"] < progress_data["total"]:
-            yield f"data: {progress_data['completed']},{progress_data['total']},{progress_data['message']}\n\n"
-            time.sleep(0.5)
-        yield f"data: {progress_data['completed']},{progress_data['total']},{progress_data['message']}\n\n"
+        last_str = None
+        for _ in range(900):  # Keep alive up to 6 minutes
+            with progress_lock:
+                c = progress_data.get("completed", 0)
+                t = progress_data.get("total", 0)
+                m = progress_data.get("message", "Starting...")
+            data_str = f"{c},{t},{m}"
+            if data_str != last_str:
+                last_str = data_str
+                yield f"data: {data_str}\n\n"
+            if t > 0 and c >= t:
+                yield f"data: {c},{t},All downloads complete!\n\n"
+                break
+            time.sleep(0.4)
 
     return Response(generate(), mimetype="text/event-stream")
 
@@ -527,36 +548,85 @@ def export_summary_csv():
 
 
 # ─── PLAGIARISM / COPY DETECTION ─────────────────────────────────────────────
-from plagiarism_engine import run_plagiarism_analysis, generate_excel_report
+from plagiarism_engine import run_plagiarism_analysis, generate_excel_report, set_progress_callback
 
-latest_plagiarism_results = []
+latest_plagiarism_data = {
+    "similarities": [],
+    "total_repos": 0,
+    "total_pairs": 0,
+    "suspicious_pairs": 0
+}
+plagiarism_in_progress = False
+plagiarism_progress = {"current": 0, "total": 100, "message": "Ready", "percent": 0}
 
+def update_progress(current, total, message):
+    global plagiarism_progress
+    pct = round((current / total * 100), 1) if total > 0 else 0
+    plagiarism_progress = {
+        "current": current,
+        "total": total,
+        "message": message,
+        "percent": min(100, int(pct))
+    }
 
-import io
-latest_plagiarism_results = []
+set_progress_callback(update_progress)
+
 
 @app.route("/check_plagiarism", methods=["GET"])
 def check_plagiarism():
-    global latest_plagiarism_results
+    global latest_plagiarism_data, plagiarism_in_progress, plagiarism_progress
     
-    result = run_plagiarism_analysis(DOWNLOAD_FOLDER)
+    if plagiarism_in_progress:
+        return jsonify({"success": False, "message": "Analysis already in progress", "in_progress": True})
     
-    if result.get("success"):
-        latest_plagiarism_results = result["similarities"]
-        
-    return jsonify(result)
+    plagiarism_in_progress = True
+    plagiarism_progress = {"current": 1, "total": 100, "message": "Scanning downloaded repositories...", "percent": 1}
+    
+    def run_in_background():
+        global latest_plagiarism_data, plagiarism_in_progress, plagiarism_progress
+        try:
+            result = run_plagiarism_analysis(DOWNLOAD_FOLDER)
+            if result.get("success"):
+                latest_plagiarism_data = {
+                    "similarities": result.get("similarities", []),
+                    "total_repos": result.get("total_repos", 0),
+                    "total_pairs": result.get("total_pairs", 0),
+                    "suspicious_pairs": result.get("suspicious_pairs", 0)
+                }
+            print(f"[PLAGIARISM] Background analysis complete: {len(latest_plagiarism_data['similarities'])} results")
+        except Exception as e:
+            print(f"[PLAGIARISM] Error: {e}")
+        finally:
+            plagiarism_in_progress = False
+            plagiarism_progress = {"current": 100, "total": 100, "message": "Analysis complete!", "percent": 100}
+    
+    threading.Thread(target=run_in_background, daemon=True).start()
+    return jsonify({"success": True, "message": "Analysis started in background", "in_progress": True})
+
+
+@app.route("/plagiarism_status", methods=["GET"])
+def plagiarism_status():
+    global latest_plagiarism_data, plagiarism_in_progress, plagiarism_progress
+    return jsonify({
+        "in_progress": plagiarism_in_progress,
+        "progress": plagiarism_progress,
+        "results": latest_plagiarism_data.get("similarities", []),
+        "total_repos": latest_plagiarism_data.get("total_repos", 0),
+        "total_pairs": latest_plagiarism_data.get("total_pairs", 0),
+        "suspicious_pairs": latest_plagiarism_data.get("suspicious_pairs", 0)
+    })
 
 
 @app.route("/export_plagiarism_excel", methods=["GET"])
 def export_plagiarism_excel():
-    global latest_plagiarism_results
-    if not latest_plagiarism_results:
+    global latest_plagiarism_data
+    sims = latest_plagiarism_data.get("similarities", [])
+    if not sims:
         return jsonify({"success": False, "message": "No plagiarism results generated yet."})
 
-    report_bytes, error = generate_excel_report(latest_plagiarism_results)
-    
+    report_bytes, error = generate_excel_report(sims)
     if error:
-        return jsonify({"success": False, "message": f"Server missing dependency to export Excel: {error}. Try '$ pip install xlsxwriter'"})
+        return jsonify({"success": False, "message": f"Server error: {error}. Try '$ pip install xlsxwriter'"})
         
     return Response(
         report_bytes,

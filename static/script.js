@@ -502,27 +502,67 @@ function downloadSelectedRepos() {
 
 // ─── PROGRESS TRACKING ──────────────────────────────
 function startProgressTracking(mode) {
-    const evtSource = new EventSource('/progress');
-    evtSource.onmessage = function (event) {
-        const [completed, total, message] = event.data.split(',');
-        const pct = total > 0 ? (completed / total) * 100 : 0;
+    let completedCount = 0;
+    let totalCount = 0;
+    let finished = false;
+
+    function handleProgressUpdate(c, t, msg) {
+        if (finished) return;
+        completedCount = parseInt(c) || 0;
+        totalCount = parseInt(t) || 0;
+        const pct = totalCount > 0 ? Math.min(100, Math.round((completedCount / totalCount) * 100)) : 0;
 
         $('#progressBar').css('width', pct + '%');
-        $('#progressText').text(message);
+        $('#progressText').text(msg || (totalCount > 0 ? `Downloaded ${completedCount} / ${totalCount}` : 'Preparing downloads...'));
 
-        if (parseInt(completed) >= parseInt(total) && parseInt(total) > 0) {
-            evtSource.close();
+        if (totalCount > 0 && completedCount >= totalCount) {
+            finished = true;
+            stopTracking();
             $('#downloadBtn').prop('disabled', false);
             $('#downloadSelectedBtn').prop('disabled', false);
             $('#toolsRow').show();
             showToast('All downloads complete!', 'success', 6000);
         }
-    };
-    evtSource.onerror = function () {
-        evtSource.close();
-        $('#downloadBtn').prop('disabled', false);
-        $('#downloadSelectedBtn').prop('disabled', false);
-    };
+    }
+
+    // 1. Dual-Track: Fast 400ms polling fallback guarantees zero UI freezing
+    const pollInterval = setInterval(function() {
+        $.get('/download_progress_status', function(data) {
+            if (data && data.total !== undefined) {
+                handleProgressUpdate(data.completed, data.total, data.message);
+            }
+        });
+    }, 400);
+
+    // 2. Real-time EventSource SSE
+    let evtSource = null;
+    try {
+        evtSource = new EventSource('/progress');
+        evtSource.onmessage = function (event) {
+            if (event.data) {
+                const parts = event.data.split(',');
+                if (parts.length >= 3) {
+                    handleProgressUpdate(parts[0], parts[1], parts.slice(2).join(','));
+                }
+            }
+        };
+        evtSource.onerror = function () {
+            if (evtSource) {
+                try { evtSource.close(); } catch(e) {}
+                evtSource = null;
+            }
+        };
+    } catch(err) {
+        console.warn("SSE not available, falling back to polling", err);
+    }
+
+    function stopTracking() {
+        clearInterval(pollInterval);
+        if (evtSource) {
+            try { evtSource.close(); } catch(e) {}
+            evtSource = null;
+        }
+    }
 }
 
 // ─── SUMMARY REPORT ─────────────────────────────────
@@ -592,23 +632,56 @@ function runPlagiarismCheck() {
     const panel = document.getElementById('plagiarismPanel');
     panel.style.display = 'block';
     document.getElementById('plagiarismContent').innerHTML = '';
-    document.getElementById('plagiarismLoadingIndicator').style.display = 'flex';
+    const loadingEl = document.getElementById('plagiarismLoadingIndicator');
+    loadingEl.style.display = 'flex';
+    loadingEl.innerHTML = 
+        '<div style="text-align:center">' +
+        '<div style="font-size:48px;color:var(--primary);font-weight:700">1%</div>' +
+        '<div style="color:var(--text-muted);margin-top:10px;font-size:15px">Scanning downloaded repositories...</div>' +
+        '</div>';
 
     $.get('/check_plagiarism', function (response) {
-        document.getElementById('plagiarismLoadingIndicator').style.display = 'none';
+        const pollInterval = setInterval(function() {
+            $.get('/plagiarism_status', function(status) {
+                if (status.progress) {
+                    const pct = status.progress.percent !== undefined 
+                        ? status.progress.percent 
+                        : (status.progress.total > 0 ? Math.round((status.progress.current / status.progress.total) * 100) : 0);
+                    
+                    const countMsg = (status.total_pairs > 0) 
+                        ? `${status.total_repos || ''} repos · ${status.total_pairs.toLocaleString()} comparison pairs`
+                        : '';
 
-        if (!response.success) {
-            document.getElementById('plagiarismContent').innerHTML =
-                `<p style="color:var(--text-muted);padding:20px;text-align:center">${response.message}</p>`;
-            return;
-        }
-
-        plagiarismCache = response;
-        renderPlagiarismResults(response, parseInt(document.getElementById('similarityThreshold').value));
+                    loadingEl.innerHTML = 
+                        '<div style="text-align:center">' +
+                        '<div style="font-size:48px;color:var(--primary);font-weight:700">' + pct + '%</div>' +
+                        '<div style="color:var(--text-muted);margin-top:10px;font-size:15px">' + (status.progress.message || 'Analyzing similarity...') + '</div>' +
+                        (countMsg ? '<div style="color:var(--text-muted);font-size:12px;margin-top:6px">' + countMsg + '</div>' : '') +
+                        '</div>';
+                }
+                if (!status.in_progress) {
+                    clearInterval(pollInterval);
+                    loadingEl.style.display = 'none';
+                    if (status.results && status.results.length > 0) {
+                        plagiarismCache = {
+                            similarities: status.results,
+                            total_repos: status.total_repos || 0,
+                            total_pairs: status.total_pairs || 0,
+                            suspicious_pairs: status.suspicious_pairs || status.results.length
+                        };
+                        renderPlagiarismResults(plagiarismCache, parseInt(document.getElementById('similarityThreshold').value));
+                        showToast(`Analysis complete! Found ${status.results.length} suspicious pairs.`, 'success');
+                    } else {
+                        document.getElementById('plagiarismContent').innerHTML = 
+                            '<p style="color:var(--text-muted);padding:30px;text-align:center;font-size:15px">No suspicious plagiarism detected above the 25% threshold.</p>';
+                    }
+                }
+            });
+        }, 400); // 400ms fast fluid polling
     }).fail(function () {
-        document.getElementById('plagiarismLoadingIndicator').style.display = 'none';
+        loadingEl.style.display = 'none';
         document.getElementById('plagiarismContent').innerHTML =
-            '<p style="color:var(--danger);padding:20px">Error running plagiarism check.</p>';
+            '<p style="color:var(--danger);padding:20px;text-align:center">Error starting plagiarism check.</p>';
     });
 
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -621,11 +694,16 @@ function applyThreshold() {
 }
 
 function renderPlagiarismResults(data, threshold = 25) {
-    const { total_repos, total_pairs, suspicious_pairs, similarities } = data;
-    const filtered = similarities.filter(s => s.combined_score >= threshold);
+    const similarities = data.similarities || [];
+    const total_repos = data.total_repos || (similarities.length ? 2 : 0);
+    const total_pairs = data.total_pairs || similarities.length;
+    const filtered = similarities.filter(s => (s.combined_score || 0) >= threshold);
 
     const rc = { critical: 0, high: 0, medium: 0, low: 0 };
-    similarities.forEach(s => { if (rc[s.risk] !== undefined) rc[s.risk]++; });
+    similarities.forEach(s => {
+        const r = (s.risk || 'medium').toLowerCase();
+        if (rc[r] !== undefined) rc[r]++;
+    });
 
     let html = `
     <div class="plag-stats">
@@ -647,14 +725,19 @@ function renderPlagiarismResults(data, threshold = 25) {
             const a = s.student_a, b = s.student_b;
             const barW = Math.min(s.combined_score, 100);
 
-            // Build 4-layer rows
+            // Build layers
             const col = v => v >= 80 ? 'var(--danger)' : v >= 50 ? 'var(--warning)' : v >= 25 ? 'var(--info)' : 'var(--text-muted)';
             const bar = (v) => `<div class="layer-bar-bg"><div class="layer-bar-fill" style="width:${Math.min(v,100)}%;background:${col(v)}"></div></div>`;
+
+            // Detect if either has AI markers
+            const aiFound = (a.ai_score >= 25 || b.ai_score >= 25);
+            const aiMarkers = [...new Set([...(a.ai_markers || []), ...(b.ai_markers || [])])];
 
             const layers = [
                 { label: 'MD5 Exact',    icon: 'key', score: s.md5_score,  note: `${s.matching_files_md5} identical files` },
                 { label: 'AST Structure', icon: 'git-branch', score: s.ast_score,  note: s.ast_score != null ? `${s.ast_comparisons} .py files` : 'No Python files matched' },
                 { label: 'Text Sim.',     icon: 'file-text', score: s.text_score, note: s.text_score != null ? `${s.text_comparisons} files` : 'No text files matched' },
+                { label: 'AI Detection',  icon: 'cpu', score: Math.max(a.ai_score, b.ai_score), note: aiFound ? `Detected: ${aiMarkers.join(', ')}` : 'No AI markers found' },
             ];
 
             let layersHtml = '<div class="layer-list">';
@@ -693,13 +776,18 @@ function renderPlagiarismResults(data, threshold = 25) {
                 matchesHtml += `</div></details>`;
             }
 
+            const aiBadge = aiFound ? `<span class="ai-badge"><i data-lucide="cpu"></i> AI CONTENT</span>` : '';
+
             html += `
-            <div class="plag-card risk-${s.risk}">
+            <div class="plag-card risk-${s.risk} ${aiFound ? 'has-ai' : ''}">
                 <div class="plag-header">
                     <div class="plag-students">
                         <strong>${a.name}</strong><span class="plag-vs">vs</span><strong>${b.name}</strong>
                     </div>
-                    <span class="risk-badge risk-${s.risk}">${s.risk.toUpperCase()}</span>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        ${aiBadge}
+                        <span class="risk-badge risk-${s.risk}">${s.risk.toUpperCase()}</span>
+                    </div>
                 </div>
                 <div class="similarity-bar-wrap risk-${s.risk}">
                     <div class="similarity-label">

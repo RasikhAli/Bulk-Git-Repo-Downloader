@@ -833,6 +833,26 @@ td.url-cell {
     to { opacity: 0; transform: translateX(60px) scale(0.9); }
 }
 
+/* AI Detection Styles */
+.ai-badge {
+    background: #6200ea;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 10px rgba(98, 0, 234, 0.4);
+}
+.plag-card.has-ai {
+    background: linear-gradient(135deg, var(--bg-card2) 0%, #1a152e 100%);
+    border-right: 2px solid #6200ea !important;
+}
+
+
 /* ═══════════════════════════════════════════════════
    SCROLLBAR
 ════════════════════════════════════════════════════ */
