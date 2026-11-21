@@ -42,8 +42,8 @@
             </div>
             <div id="tokenContent" class="token-content" style="display:none;">
                 <p class="token-info">
-                    Set a GitHub token for higher API limits (5,000/hr vs 60/hr without a token).
-                    <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Get one here →</a>
+                    Set a GitHub token for higher API limits (5,000/hr vs 60/hr). To use the <strong>Follow / Unfollow</strong> features, ensure your token has the <code>user:follow</code> (or <code>user</code>) scope.
+                    <a href="https://github.com/settings/tokens/new?scopes=repo,user:follow" target="_blank" rel="noopener">Generate Token with 'user:follow' →</a>
                 </p>
                 <div class="token-input-row">
                     <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
@@ -80,6 +80,44 @@
                 <input type="text" id="searchInput" placeholder="Search by name, reg no, URL…" oninput="filterTable()" class="search-input">
                 <span id="rowCount" class="row-count"></span>
                 <button onclick="clearSearch()" class="btn-ghost" id="clearSearchBtn" style="display:none;"><i data-lucide="x" style="width:16px;height:16px;"></i> Clear</button>
+            </div>
+        </div>
+
+        <!-- GitHub Profile Follow Manager -->
+        <div id="followManagerCard" class="card follow-manager-card" style="display:none;">
+            <div class="follow-toolbar-header">
+                <div class="follow-toolbar-title">
+                    <i data-lucide="user-check"></i>
+                    <span>GitHub Profile Follow Manager</span>
+                    <span id="followBadgeCount" class="follow-count-badge">0 Profiles</span>
+                </div>
+                <div class="follow-stats">
+                    <span class="stat-pill stat-following"><i data-lucide="check-circle-2"></i> Following: <strong id="statFollowingCount">0</strong></span>
+                    <span class="stat-pill stat-not-following"><i data-lucide="user-plus"></i> Not Followed: <strong id="statNotFollowingCount">0</strong></span>
+                </div>
+            </div>
+
+            <div class="follow-actions-row">
+                <button type="button" id="btnCheckFollowing" onclick="checkFollowingStatus(true)" class="btn-secondary btn-sm" title="Refresh following status from GitHub API">
+                    <i data-lucide="refresh-cw"></i> Check Follow Status
+                </button>
+                <button type="button" id="btnFollowAll" onclick="startBatchFollow('follow')" class="btn-primary btn-sm" title="Follow all visible student GitHub profiles">
+                    <i data-lucide="user-plus"></i> Follow All Visible
+                </button>
+                <button type="button" id="btnUnfollowAll" onclick="startBatchFollow('unfollow')" class="btn-secondary btn-danger-subtle btn-sm" title="Unfollow all visible student GitHub profiles">
+                    <i data-lucide="user-minus"></i> Unfollow All Visible
+                </button>
+                <button type="button" id="btnStopBatchFollow" onclick="stopBatchFollow()" class="btn-danger btn-sm" style="display:none;">
+                    <i data-lucide="square"></i> Stop
+                </button>
+            </div>
+
+            <!-- Follow Progress Bar -->
+            <div id="followProgressBarWrap" class="follow-progress-wrap" style="display:none;">
+                <div class="follow-progress-bar">
+                    <div id="followProgressFill" class="follow-progress-fill" style="width: 0%;"></div>
+                </div>
+                <div class="follow-progress-text" id="followProgressText">Processing…</div>
             </div>
         </div>
 

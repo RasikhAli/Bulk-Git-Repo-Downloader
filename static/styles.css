@@ -912,3 +912,234 @@ td.url-cell {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+/* ═══════════════════════════════════════════════════
+   GITHUB FOLLOW / UNFOLLOW MANAGER
+════════════════════════════════════════════════════ */
+.follow-manager-card {
+    background: linear-gradient(145deg, var(--bg-card), var(--bg-card2));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    border-radius: var(--radius);
+}
+
+.follow-toolbar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.follow-toolbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.follow-toolbar-title i {
+    color: var(--accent);
+    width: 18px;
+    height: 18px;
+}
+
+.follow-count-badge {
+    background: rgba(0, 229, 155, 0.12);
+    color: var(--accent);
+    border: 1px solid rgba(0, 229, 155, 0.25);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    letter-spacing: 0.3px;
+}
+
+.follow-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.stat-pill i {
+    width: 14px;
+    height: 14px;
+}
+
+.stat-following {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.stat-not-following {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.follow-actions-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-sm {
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-sm i {
+    width: 15px;
+    height: 15px;
+}
+
+.btn-danger-subtle {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.btn-danger-subtle:hover:not(:disabled) {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+.follow-progress-wrap {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.follow-progress-bar {
+    width: 100%;
+    height: 7px;
+    background: var(--bg-hover);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.follow-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, var(--accent));
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.follow-progress-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono, monospace);
+}
+
+/* ═══════════════════════════════════════════════════
+   TABLE CELL FOLLOW BUTTONS
+════════════════════════════════════════════════════ */
+td.url-cell {
+    max-width: 320px;
+    white-space: nowrap;
+}
+
+.cell-flex {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.follow-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--accent);
+    background: rgba(0, 229, 155, 0.1);
+    color: var(--accent);
+    vertical-align: middle;
+    margin-left: 4px;
+    white-space: nowrap;
+    text-decoration: none;
+    line-height: 1.2;
+}
+
+.follow-btn i {
+    width: 12px;
+    height: 12px;
+}
+
+.follow-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #0b0f17;
+    box-shadow: 0 0 8px rgba(0, 229, 155, 0.35);
+}
+
+.follow-btn.following {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #10b981;
+}
+
+.follow-btn.following:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.follow-btn.following:hover:not(:disabled) i {
+    display: none;
+}
+
+.follow-btn.following:hover:not(:disabled) span {
+    display: none;
+}
+
+.follow-btn.following:hover:not(:disabled)::before {
+    content: "Unfollow";
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.follow-btn.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner-sm {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+}

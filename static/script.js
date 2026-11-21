@@ -8,6 +8,30 @@ let fullTableData = [];       // All rows for search filtering
 let fullTableColumns = [];
 let plagiarismCache = null;   // Cache last plagiarism result
 
+// ─── GITHUB FOLLOW STATE ────────────────────────────
+let myFollowingSet = new Set();
+let followingLoaded = false;
+let batchFollowPollTimer = null;
+
+function extractGitHubUsername(urlOrStr) {
+    if (!urlOrStr) return null;
+    let s = urlOrStr.toString().trim();
+    if (!s || s.toLowerCase() === 'nan' || s === '—') return null;
+    // Match https://github.com/username or github.com/username
+    const match = s.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_\-\.]+)/i);
+    if (match && match[1]) {
+        let u = match[1].replace(/\/+$/, '');
+        if (!['orgs', 'settings', 'notifications', 'explore', 'marketplace', 'features'].includes(u.toLowerCase())) {
+            return u;
+        }
+    }
+    // Match @username
+    if (s.startsWith('@') && s.length > 1) {
+        return s.slice(1);
+    }
+    return null;
+}
+
 // ─── DARK MODE ──────────────────────────────────────
 function initTheme() {
     const saved = localStorage.getItem('theme') || 'dark';
@@ -186,6 +210,7 @@ function loadSheet() {
     $('#selectionSummary').hide();
     $('#tableContainer').html('');
     $('#searchSection').hide();
+    $('#followManagerCard').hide();
     $('#summaryPanel').hide();
     $('#plagiarismPanel').hide();
 
@@ -206,6 +231,10 @@ function loadSheet() {
                 $('#searchSection').show();
                 updateRowCount(fullTableData.length, fullTableData.length);
                 updateRepoColumnsInfo(response.has_github_repo, response.has_github_project_repo);
+
+                // Update follow toolbar stats and automatically sync following status
+                updateFollowToolbarStats();
+                checkFollowingStatus(false);
 
                 const profileCount = githubProfilesInfo.length;
                 if (profileCount > 0) {
@@ -242,9 +271,24 @@ function renderTable(data, columns) {
             const val = (row[col] || '').toString().trim();
             const isUrl = val.startsWith('http');
             const isEmpty = val === '';
+            const isProfileCol = (col === 'GitHub Profiles' || col.toLowerCase().includes('profile') || col.toLowerCase() === 'github');
+            const username = isProfileCol ? extractGitHubUsername(val) : null;
 
             if (isEmpty) {
                 html += `<td class="empty-cell">—</td>`;
+            } else if (username) {
+                const uLower = username.toLowerCase();
+                const isFollowing = myFollowingSet.has(uLower);
+                html += `<td class="url-cell">
+                    <div class="cell-flex">
+                        <a href="${val}" target="_blank" rel="noopener" title="${val}">@${username}</a>
+                        <button class="copy-btn" onclick="copyText('${escapeJs(val)}')" title="Copy URL"><i data-lucide="copy"></i></button>
+                        <button class="follow-btn ${isFollowing ? 'following' : ''}" data-username="${username}" onclick="toggleFollowUser('${username}', this)" title="${isFollowing ? 'Click to Unfollow @' + username : 'Click to Follow @' + username}">
+                            <i data-lucide="${isFollowing ? 'check' : 'user-plus'}"></i>
+                            <span>${isFollowing ? 'Following' : 'Follow'}</span>
+                        </button>
+                    </div>
+                </td>`;
             } else if (isUrl) {
                 html += `<td class="url-cell">
                     <a href="${val}" target="_blank" rel="noopener" title="${val}">${truncate(val, 35)}</a>
@@ -287,6 +331,7 @@ function filterTable() {
     if (!query) {
         renderTable(fullTableData, fullTableColumns);
         updateRowCount(fullTableData.length, fullTableData.length);
+        updateFollowToolbarStats();
         return;
     }
 
@@ -296,6 +341,7 @@ function filterTable() {
 
     renderTable(filtered, fullTableColumns);
     updateRowCount(filtered.length, fullTableData.length);
+    updateFollowToolbarStats();
 }
 
 function clearSearch() {
@@ -815,6 +861,256 @@ function renderPlagiarismResults(data, threshold = 25) {
 
 function closePlagiarismPanel() {
     document.getElementById('plagiarismPanel').style.display = 'none';
+}
+
+// ─── GITHUB PROFILE FOLLOW & BATCH MANAGER ───────────
+
+function toggleFollowUser(username, btnEl) {
+    if (!username) return;
+    const $btn = $(btnEl);
+    const uLower = username.toLowerCase();
+    const isCurrentlyFollowing = myFollowingSet.has(uLower);
+    const action = isCurrentlyFollowing ? 'unfollow' : 'follow';
+    const endpoint = isCurrentlyFollowing ? '/unfollow_user' : '/follow_user';
+
+    $btn.addClass('loading').prop('disabled', true);
+    $btn.html('<div class="spinner-sm"></div>');
+
+    $.ajax({
+        url: endpoint,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ username: username }),
+        success(response) {
+            $btn.removeClass('loading').prop('disabled', false);
+            if (response.success) {
+                if (action === 'follow') {
+                    myFollowingSet.add(uLower);
+                    showToast(`Followed @${username}`, 'success', 2500);
+                } else {
+                    myFollowingSet.delete(uLower);
+                    showToast(`Unfollowed @${username}`, 'info', 2500);
+                }
+                updateAllButtonsForUser(username);
+                updateFollowToolbarStats();
+            } else {
+                updateAllButtonsForUser(username);
+                showToast(response.message || `Error during ${action}`, 'error', 5500);
+            }
+        },
+        error(xhr) {
+            $btn.removeClass('loading').prop('disabled', false);
+            updateAllButtonsForUser(username);
+            let errMsg = 'Network error.';
+            try { errMsg = JSON.parse(xhr.responseText).message || errMsg; } catch(e) {}
+            showToast(errMsg, 'error', 4500);
+        }
+    });
+}
+
+function updateAllButtonsForUser(username) {
+    const uLower = username.toLowerCase();
+    const isFollowing = myFollowingSet.has(uLower);
+    $(`button.follow-btn[data-username="${username}"]`).each(function() {
+        const btn = $(this);
+        btn.toggleClass('following', isFollowing);
+        btn.attr('title', isFollowing ? `Click to Unfollow @${username}` : `Click to Follow @${username}`);
+        btn.html(isFollowing ? '<i data-lucide="check"></i> <span>Following</span>' : '<i data-lucide="user-plus"></i> <span>Follow</span>');
+    });
+    lucide.createIcons();
+}
+
+function checkFollowingStatus(showToasts = true) {
+    const btn = $('#btnCheckFollowing');
+    btn.prop('disabled', true).html('<i data-lucide="loader-2" class="spin"></i> Checking…');
+    lucide.createIcons();
+
+    $.ajax({
+        url: '/get_following_list',
+        type: 'GET',
+        success(response) {
+            btn.prop('disabled', false).html('<i data-lucide="refresh-cw"></i> Check Follow Status');
+            if (response.success) {
+                myFollowingSet = new Set((response.following || []).map(u => u.toLowerCase()));
+                followingLoaded = true;
+
+                // Update all buttons in DOM
+                $('button.follow-btn').each(function() {
+                    const u = $(this).attr('data-username');
+                    if (u) {
+                        const isFollowing = myFollowingSet.has(u.toLowerCase());
+                        $(this).toggleClass('following', isFollowing);
+                        $(this).attr('title', isFollowing ? `Click to Unfollow @${u}` : `Click to Follow @${u}`);
+                        $(this).html(isFollowing ? '<i data-lucide="check"></i> <span>Following</span>' : '<i data-lucide="user-plus"></i> <span>Follow</span>');
+                    }
+                });
+                lucide.createIcons();
+                updateFollowToolbarStats();
+                if (showToasts) {
+                    showToast(`Follow status synced! You follow ${response.total_following} accounts.`, 'success');
+                }
+            } else {
+                if (showToasts) {
+                    showToast(response.message || 'Error checking following list.', 'warning');
+                }
+            }
+        },
+        error() {
+            btn.prop('disabled', false).html('<i data-lucide="refresh-cw"></i> Check Follow Status');
+            lucide.createIcons();
+            if (showToasts) {
+                showToast('Failed to connect to GitHub following endpoint.', 'error');
+            }
+        }
+    });
+}
+
+function updateFollowToolbarStats() {
+    const card = document.getElementById('followManagerCard');
+    if (!card) return;
+
+    const visibleUsernames = getVisibleUsernames();
+    if (!visibleUsernames.length) {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+    $('#followBadgeCount').text(`${visibleUsernames.length} Profiles`);
+
+    let followingCount = 0;
+    let notFollowingCount = 0;
+    visibleUsernames.forEach(u => {
+        if (myFollowingSet.has(u.toLowerCase())) {
+            followingCount++;
+        } else {
+            notFollowingCount++;
+        }
+    });
+
+    $('#statFollowingCount').text(followingCount);
+    $('#statNotFollowingCount').text(notFollowingCount);
+    $('#btnFollowAll').html(`<i data-lucide="user-plus"></i> Follow All (${notFollowingCount})`).prop('disabled', notFollowingCount === 0);
+    $('#btnUnfollowAll').html(`<i data-lucide="user-minus"></i> Unfollow All (${followingCount})`).prop('disabled', followingCount === 0);
+    lucide.createIcons();
+}
+
+function getVisibleUsernames() {
+    const usernames = [];
+    const seen = new Set();
+    const rows = fullTableData;
+    if (!rows || !rows.length) return [];
+
+    const profileCol = fullTableColumns.find(c => c === 'GitHub Profiles' || c.toLowerCase().includes('profile') || c.toLowerCase() === 'github');
+    if (!profileCol) return [];
+
+    rows.forEach(r => {
+        const val = r[profileCol];
+        const u = extractGitHubUsername(val);
+        if (u && !seen.has(u.toLowerCase())) {
+            seen.add(u.toLowerCase());
+            usernames.push(u);
+        }
+    });
+    return usernames;
+}
+
+function startBatchFollow(action) {
+    const visibleUsernames = getVisibleUsernames();
+    const targetUsernames = action === 'follow'
+        ? visibleUsernames.filter(u => !myFollowingSet.has(u.toLowerCase()))
+        : visibleUsernames.filter(u => myFollowingSet.has(u.toLowerCase()));
+
+    if (!targetUsernames.length) {
+        showToast(`No profiles need to be ${action}ed!`, 'info');
+        return;
+    }
+
+    if (action === 'unfollow' && !confirm(`Are you sure you want to unfollow ${targetUsernames.length} student profiles?`)) {
+        return;
+    }
+
+    $('#btnFollowAll').prop('disabled', true);
+    $('#btnUnfollowAll').prop('disabled', true);
+    $('#btnCheckFollowing').prop('disabled', true);
+    $('#btnStopBatchFollow').show();
+    $('#followProgressBarWrap').show();
+    $('#followProgressFill').css('width', '0%');
+    $('#followProgressText').text(`Starting batch ${action} for ${targetUsernames.length} users...`);
+
+    $.ajax({
+        url: '/batch_follow',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ action: action, usernames: targetUsernames }),
+        success(response) {
+            if (response.success) {
+                showToast(response.message, 'info');
+                pollBatchFollowStatus(action);
+            } else {
+                endBatchFollow();
+                showToast(response.message || `Error starting ${action}`, 'error');
+            }
+        },
+        error(xhr) {
+            endBatchFollow();
+            let msg = `Error starting batch ${action}`;
+            try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+            showToast(msg, 'error');
+        }
+    });
+}
+
+function pollBatchFollowStatus(action) {
+    if (batchFollowPollTimer) clearInterval(batchFollowPollTimer);
+
+    batchFollowPollTimer = setInterval(function() {
+        $.get('/batch_follow_status', function(data) {
+            if (!data) return;
+
+            const pct = data.total > 0 ? Math.min(100, Math.round((data.current / data.total) * 100)) : 0;
+            $('#followProgressFill').css('width', pct + '%');
+            $('#followProgressText').text(data.message || `Processing ${data.current} / ${data.total}...`);
+
+            if (data.results) {
+                Object.entries(data.results).forEach(([u, res]) => {
+                    const uLower = u.toLowerCase();
+                    if (res === 'following') {
+                        myFollowingSet.add(uLower);
+                        updateAllButtonsForUser(u);
+                    } else if (res === 'not_following') {
+                        myFollowingSet.delete(uLower);
+                        updateAllButtonsForUser(u);
+                    }
+                });
+                updateFollowToolbarStats();
+            }
+
+            if (!data.in_progress) {
+                clearInterval(batchFollowPollTimer);
+                batchFollowPollTimer = null;
+                endBatchFollow();
+                showToast(data.message || `Batch ${action} completed!`, 'success', 5000);
+            }
+        });
+    }, 400);
+}
+
+function stopBatchFollow() {
+    $.post('/stop_batch_follow', function() {
+        showToast('Stopping batch operation…', 'info');
+    });
+}
+
+function endBatchFollow() {
+    $('#btnStopBatchFollow').hide();
+    $('#btnFollowAll').prop('disabled', false);
+    $('#btnUnfollowAll').prop('disabled', false);
+    $('#btnCheckFollowing').prop('disabled', false);
+    setTimeout(() => {
+        $('#followProgressBarWrap').fadeOut();
+    }, 3500);
+    updateFollowToolbarStats();
 }
 
 // ─── ON LOAD ────────────────────────────────────────

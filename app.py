@@ -38,12 +38,21 @@ CACHE_EXPIRY = 300  # Cache expiry in seconds (5 minutes)
 
 # GitHub API Token - Set this for higher rate limits (5000/hr vs 60/hr)
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+if not GITHUB_TOKEN:
+    try:
+        import subprocess
+        gh_tok = subprocess.check_output(['gh', 'auth', 'token'], text=True, timeout=2).strip()
+        if gh_tok:
+            GITHUB_TOKEN = gh_tok
+    except Exception:
+        pass
 
 # Create a session for connection pooling
 session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=20, pool_maxsize=20, max_retries=3)
 session.mount('http://', adapter)
 session.mount('https://', adapter)
+session.headers.update({'Accept': 'application/vnd.github+json'})
 
 if GITHUB_TOKEN:
     session.headers.update({'Authorization': f'token {GITHUB_TOKEN}'})
@@ -106,6 +115,239 @@ def check_rate_limit():
         return jsonify({"success": False, "message": "Could not check rate limit"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
+
+
+# ─── GITHUB PROFILE FOLLOW / UNFOLLOW SYSTEM ──────────────────────────────────
+batch_follow_state = {
+    "in_progress": False,
+    "should_stop": False,
+    "action": "follow",
+    "current": 0,
+    "total": 0,
+    "success_count": 0,
+    "fail_count": 0,
+    "message": "Ready",
+    "last_user": "",
+    "results": {}
+}
+batch_follow_lock = threading.Lock()
+
+
+@app.route("/get_following_list", methods=["GET"])
+def get_following_list():
+    """Fetches the full list of GitHub usernames the authenticated user currently follows."""
+    global GITHUB_TOKEN
+    if not GITHUB_TOKEN:
+        return jsonify({"success": False, "message": "GitHub API token required to check following status."})
+
+    following_set = set()
+    page = 1
+    max_pages = 10  # Up to 1,000 following profiles
+
+    try:
+        while page <= max_pages:
+            url = f"https://api.github.com/user/following?per_page=100&page={page}"
+            resp = session.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data:
+                    break
+                for u in data:
+                    if isinstance(u, dict) and "login" in u:
+                        following_set.add(u["login"].lower())
+                if len(data) < 100:
+                    break
+                page += 1
+            elif resp.status_code in (401, 403):
+                return jsonify({
+                    "success": False,
+                    "message": "GitHub token unauthorized. Ensure token has 'user:follow' or 'user' scope."
+                })
+            else:
+                break
+
+        return jsonify({
+            "success": True,
+            "following": list(following_set),
+            "total_following": len(following_set)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route("/follow_user", methods=["POST"])
+def follow_user():
+    """Follows a single GitHub user profile."""
+    global GITHUB_TOKEN
+    if not GITHUB_TOKEN:
+        return jsonify({"success": False, "message": "GitHub API token required."})
+
+    username = request.json.get("username", "").strip()
+    if not username:
+        return jsonify({"success": False, "message": "Username is required."})
+
+    try:
+        url = f"https://api.github.com/user/following/{username}"
+        resp = session.put(url, headers={"Content-Length": "0"}, timeout=10)
+        
+        if resp.status_code == 204:
+            return jsonify({
+                "success": True,
+                "status": "following",
+                "username": username,
+                "message": f"Successfully followed @{username}"
+            })
+        elif resp.status_code in (401, 403, 404):
+            return jsonify({
+                "success": False,
+                "message": f"Cannot follow @{username}. Please ensure your GitHub token has the 'user:follow' permission."
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"GitHub API returned HTTP {resp.status_code}"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route("/unfollow_user", methods=["POST"])
+def unfollow_user():
+    """Unfollows a single GitHub user profile."""
+    global GITHUB_TOKEN
+    if not GITHUB_TOKEN:
+        return jsonify({"success": False, "message": "GitHub API token required."})
+
+    username = request.json.get("username", "").strip()
+    if not username:
+        return jsonify({"success": False, "message": "Username is required."})
+
+    try:
+        url = f"https://api.github.com/user/following/{username}"
+        resp = session.delete(url, timeout=10)
+        
+        if resp.status_code == 204:
+            return jsonify({
+                "success": True,
+                "status": "not_following",
+                "username": username,
+                "message": f"Successfully unfollowed @{username}"
+            })
+        elif resp.status_code in (401, 403):
+            return jsonify({
+                "success": False,
+                "message": "Token unauthorized. Ensure token has 'user:follow' permission."
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"GitHub API returned HTTP {resp.status_code}"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route("/batch_follow", methods=["POST"])
+def batch_follow():
+    """Executes a batch follow or unfollow in the background with anti-abuse rate delay."""
+    global GITHUB_TOKEN, batch_follow_state
+    if not GITHUB_TOKEN:
+        return jsonify({"success": False, "message": "GitHub API token required."})
+
+    with batch_follow_lock:
+        if batch_follow_state.get("in_progress"):
+            return jsonify({"success": False, "message": "A batch follow/unfollow job is already in progress."})
+
+        data = request.json or {}
+        action = data.get("action", "follow")
+        usernames = data.get("usernames", [])
+
+        clean_users = []
+        seen = set()
+        for u in usernames:
+            clean = str(u).strip().lower()
+            if clean and clean not in seen:
+                clean_users.append(clean)
+                seen.add(clean)
+
+        if not clean_users:
+            return jsonify({"success": False, "message": "No valid usernames to process."})
+
+        batch_follow_state = {
+            "in_progress": True,
+            "should_stop": False,
+            "action": action,
+            "current": 0,
+            "total": len(clean_users),
+            "success_count": 0,
+            "fail_count": 0,
+            "message": f"Starting {action} for {len(clean_users)} profiles...",
+            "last_user": "",
+            "results": {}
+        }
+
+    def run_batch():
+        global batch_follow_state
+        verb = "Following" if action == "follow" else "Unfollowing"
+
+        for idx, u in enumerate(clean_users):
+            with batch_follow_lock:
+                if batch_follow_state["should_stop"]:
+                    batch_follow_state["message"] = f"Batch {action} stopped by user."
+                    batch_follow_state["in_progress"] = False
+                    break
+                batch_follow_state["current"] = idx + 1
+                batch_follow_state["last_user"] = u
+                batch_follow_state["message"] = f"{verb} @{u} ({idx + 1}/{len(clean_users)})..."
+
+            url = f"https://api.github.com/user/following/{u}"
+            try:
+                if action == "follow":
+                    resp = session.put(url, headers={"Content-Length": "0"}, timeout=8)
+                else:
+                    resp = session.delete(url, timeout=8)
+
+                with batch_follow_lock:
+                    if resp.status_code == 204:
+                        batch_follow_state["success_count"] += 1
+                        batch_follow_state["results"][u] = "following" if action == "follow" else "not_following"
+                    else:
+                        batch_follow_state["fail_count"] += 1
+                        batch_follow_state["results"][u] = f"error_{resp.status_code}"
+            except Exception:
+                with batch_follow_lock:
+                    batch_follow_state["fail_count"] += 1
+                    batch_follow_state["results"][u] = "error"
+
+            # Anti-spam delay: 350ms between actions
+            time.sleep(0.35)
+
+        with batch_follow_lock:
+            batch_follow_state["in_progress"] = False
+            batch_follow_state["message"] = (
+                f"Completed {action}! Successful: {batch_follow_state['success_count']}, "
+                f"Failed: {batch_follow_state['fail_count']}"
+            )
+
+    threading.Thread(target=run_batch, daemon=True).start()
+    return jsonify({"success": True, "message": f"Started {action} for {len(clean_users)} profiles."})
+
+
+@app.route("/batch_follow_status", methods=["GET"])
+def batch_follow_status():
+    """Returns the current state and results of the batch follow/unfollow job."""
+    with batch_follow_lock:
+        return jsonify(dict(batch_follow_state))
+
+
+@app.route("/stop_batch_follow", methods=["POST"])
+def stop_batch_follow():
+    """Stops the active batch follow/unfollow job."""
+    with batch_follow_lock:
+        if batch_follow_state["in_progress"]:
+            batch_follow_state["should_stop"] = True
+            return jsonify({"success": True, "message": "Stopping batch operation..."})
+        return jsonify({"success": True, "message": "No active batch operation."})
 
 
 @app.route("/upload", methods=["POST"])
