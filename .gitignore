@@ -6,7 +6,7 @@
 /venv/
 /.venv/
 env/
-.env
+.env*
 
 # Cache & Compiled Files
 __pycache__/
